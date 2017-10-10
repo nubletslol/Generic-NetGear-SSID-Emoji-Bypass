@@ -1,0 +1,691 @@
+checkData = function()
+{
+    var cf = document.forms[0];
+    var msg_key64_type = "Invalid Key.\n\nKeys length should be 10 Hex (0~9 and A~F) chars or 5 ASCII chars." ;
+    var msg_key128_type = "Invalid Key.\n\nKeys length should be 26 Hex (0~9 and A~F) chars or 13 ASCII chars.";
+    var show_wep_or_wps_msg = false;
+    var wps_version = "2.0";  
+    //var show_wep_or_wps_v20_msg = false;
+    var show_tkip_or_wps_v20_msg = false;
+    var show_ssid_bc_or_wps_v20_msg = false;
+    var show_open_or_wps_v20_msg = false;
+    
+    var index = cf.WRegion.selectedIndex;
+
+    var cf = document.forms[0];
+    var msg = ""; var blankFlag = false; var sizeOK = false; var i;
+    var len = (cf.wepenc.selectedIndex==0)?10:((cf.wepenc.selectedIndex==1)?26:32);
+    var len_an = (cf.wepenc_an.selectedIndex==0)?10:((cf.wepenc_an.selectedIndex==1)?26:32);
+    var len_an_2 = (cf.wepenc_an_2.selectedIndex==0)?10:((cf.wepenc_an_2.selectedIndex==1)?26:32);
+    
+    var needGrayOutWPS = 0;
+    if(!checkRegion()) return false;
+
+    if (cf.ssid.value == "")
+    {
+        alert("SSID cannot be blank.");
+        return false;
+    }
+
+   //  if (cf.ssid.value.match( /[^\x20-\x7E]/ ))
+   //  {
+   //     alert("Character is not allowed in SSID.");
+   //     return false;
+   // }
+
+    if (cf.wds_enable.value == "1" && cf.w_channel[0].selected)
+    {
+        alert("The wireless repeating function cannot be used with Auto Channel.\nPlease change your channel settings before you enable the wireless repeating function.");
+        return false;
+    }
+        
+//    if ((cf.auto_channel_5G.value == "1") && (index != 1 && index != 6 && index != 8 && index != 9 && index != 15 && index != 17))		// No band 4 channels for Africa, Europe, Israel, Japan, Middel East(Turkey/Tunisia/Kuwait), Middel East(United Arab Emirates) 
+    if (cf.auto_channel_5G.value == "1")		// No band 4 channels for Africa, Europe, Israel, Japan, Middel East(Turkey/Tunisia/Kuwait), Middel East(United Arab Emirates) 
+    {
+        if (cf.wds_enable_an.value == "1" && cf.w_channel_an[0].selected && (!cf.opmode_an[2].selected))
+        {
+            alert("The wireless repeating function cannot be used with Auto Channel.\nPlease change your channel settings before you enable the wireless repeating function.");
+            return false;
+        }
+    }
+
+    
+    if (cf.ssid_an.value == "")
+    {
+        alert("SSID cannot be blank.");
+        return false;
+    }
+
+  //  if (cf.ssid_an.value.match( /[^\x20-\x7E]/ ))
+  // {
+  //      alert("Character is not allowed in SSID.");
+  //      return false;
+  //  }
+
+    if(showDual5GBand)
+    {
+        if (cf.ssid_an_2.value == "")
+        {
+            alert("SSID cannot be blank.");
+            return false;
+        }
+    //    if (cf.ssid_an_2.value.match( /[^\x20-\x7E]/ ))
+    //    {
+    //        alert("Character is not allowed in SSID.");
+    //        return false;
+    //   }
+    }
+    //Foxconn added start, Wins, 06/22/2011, @WPS v2.0
+    if (wps_version == "2.0")
+    {
+        //Disable SSID Broadcast (2.4GHz)
+        if(!cf.ssid_bc.checked) {
+            if (!confirm("WPS requires SSID broadcasting in order to work. If you make this change, WPS will become inaccessible. Do you want to continue?")){
+                return false;
+            }
+            show_ssid_bc_or_wps_v20_msg = true;
+            needGrayOutWPS = 1;
+        }
+
+        //Disable SSID Broadcast (5GHz)
+        if(!cf.ssid_bc_an.checked || !cf.ssid_bc_an_2.checked) {
+            if (!show_ssid_bc_or_wps_v20_msg ) {
+                if (!confirm("WPS requires SSID broadcasting in order to work. If you make this change, WPS will become inaccessible. Do you want to continue?")){
+                    return false;
+                }
+            }
+            show_ssid_bc_or_wps_v20_msg = true;
+            needGrayOutWPS = 1;
+        }
+
+
+        //Security option is set to None (2.4GHz)
+        if (cf.security_type_2G.value == "None") {
+            if (!confirm("Are you sure that you do not want any wireless security on your network? This setting is typically used for wireless hot spots that are open to public access. Do you want to continue?")){
+                return false;
+            }
+            show_open_or_wps_v20_msg = true;
+        }
+
+        //Security option is set to None (5GHz-2)
+//       if( index != 1 && index !=5 &&  index!=6 && index != 8 &&  index!=9 && index!=13 && index!=14 && index!=15 && index!=17 && index !=18)
+        if( 1)
+        {
+            if (cf.security_type_5G.value == "None" ||cf.security_type_5G_2.value == "None") {
+                if (!show_open_or_wps_v20_msg) {
+                    if (!confirm("Are you sure that you do not want any wireless security on your network? This setting is typically used for wireless hot spots that are open to public access. Do you want to continue?")){
+                        return false;
+                    }
+                }
+                show_open_or_wps_v20_msg = true;
+            }
+        }
+    }
+    //Foxconn added end, Wins, 06/22/2011, @WPS v2.0
+        
+    if (cf.security_type_2G.value == "WEP")
+    {
+        for (i = 1; i < 5; i++ )
+        {
+            msg = "";
+            blankFlag = ! (eval("(cf.wep_key_no[" + (i-1) + "].checked)")); // default key
+            if( (blankFlag) && (eval("(cf.KEY" + i + ".value.length == 0)")) )
+                continue; 
+            sizeOK = (((eval("isHex(cf.KEY" + i +".value)")) && (eval("(cf.KEY" + i + ".value.length == len)"))) || (eval("(cf.KEY" + i + ".value.length == len/2)")));
+            if (!sizeOK)
+            {
+                msg += (len == 10)?msg_key64_type:msg_key128_type;
+                alertR(msg);
+                if (i==1)
+                    cf.KEY1.focus();
+                else if (i==2)
+                    cf.KEY2.focus();
+                else if (i==3)
+                    cf.KEY3.focus();
+                else if (i==4)
+                    cf.KEY4.focus();
+                return false;
+            }
+        }
+        //Foxconn modified start, Wins, 06/22/2011, @WPS v2.0
+        if (wps_version == "2.0")
+        {   
+            if (!confirm("WEP security cannot work with WPS. WPS is going to become inaccessible. Do you want to continue?")){
+                return false;
+            }
+            show_tkip_or_wps_v20_msg = true;
+            needGrayOutWPS = 1;
+        }
+        else
+        {
+            if (cf.authAlgm.value.toLowerCase() == "sharedkey" && 
+				(cf.initAuthType.value.toLowerCase() != "sharedkey" || cf.init_security_type_2G.value.toLowerCase() != "wep"))
+            {
+                 if (!confirm("WEP security with shared key authentication does not work with WPS. WPS will be inaccessible. Do you want to continue?")){
+                    return false;
+                }
+                show_wep_or_wps_msg = true;
+            }
+            if(cf.authAlgm.value.toLowerCase() == "sharedkey")
+                needGrayOutWPS = 1;
+        }
+        //Foxconn modified end, Wins, 06/22/2011, @WPS v2.0
+        
+        
+        if(!cf.ssid_bc.checked)
+        {
+            cf.ssid_bc.value = "";
+        }
+        if(cf.wep_key_no[0].checked == true)
+        {
+            cf.wep_key_no.value = "1";
+        }
+        else if(cf.wep_key_no[1].checked == true)
+        {
+            cf.wep_key_no.value = "2";
+        }
+        else if(cf.wep_key_no[2].checked == true)
+        {
+            cf.wep_key_no.value = "3";
+        }
+        else if(cf.wep_key_no[3].checked == true)
+        {
+            cf.wep_key_no.value = "4";
+        }
+    }
+    
+    if (cf.security_type_5G.value == "WEP")
+    {
+        for (i = 1; i < 5; i++ )
+        {
+            msg = "";
+            blankFlag = ! (eval("(cf.wep_key_no_an[" + (i-1) + "].checked)")); // default key
+            if( (blankFlag) && (eval("(cf.KEY" + i + "_an" + ".value.length == 0)")) )
+                continue; // blank ok
+            sizeOK = ((eval("isHex(cf.KEY" + i + "_an" +".value)")) && (eval("(cf.KEY" + i + "_an" + ".value.length == len_an)")));
+            if (!sizeOK)
+            {
+                msg += (len_an == 10)?msg_key64_type:msg_key128_type;
+                alertR(msg);
+                if (i==1)
+                    cf.KEY1_an.focus();
+                else if (i==2)
+                    cf.KEY2_an.focus();
+                else if (i==3)
+                    cf.KEY3_an.focus();
+                else if (i==4)
+                    cf.KEY4_an.focus();
+                return false;
+            }
+        }
+        //Foxconn modified start, Wins, 06/22/2011, @WPS v2.0
+        if (wps_version == "2.0")
+        {
+            if (!show_tkip_or_wps_v20_msg) {
+                if (!confirm("WEP security cannot work with WPS. WPS is going to become inaccessible. Do you want to continue?")){
+                    return false;
+                }
+            }
+            show_tkip_or_wps_v20_msg = true;
+            needGrayOutWPS = 1;
+        }
+        else
+        {
+            if (cf.authAlgm_an.value.toLowerCase() == "sharedkey" && 
+				(cf.initAuthType_an.value.toLowerCase() != "sharedkey" && cf.init_security_type_5G.value.toLowerCase() != "wep"))
+            {
+                if (!show_wep_or_wps_msg) {
+                    if (!confirm("WEP security with shared key authentication does not work with WPS. WPS will be inaccessible. Do you want to continue?")){
+                        return false;
+                    }
+                }
+                show_wep_or_wps_msg = true;
+            }
+            if (cf.authAlgm_an.value.toLowerCase() == "sharedkey")
+                needGrayOutWPS = 1;     
+        }
+        //Foxconn modified end, Wins, 06/22/2011, @WPS v2.0
+        
+        if(!cf.ssid_bc_an.checked)
+        {
+            cf.ssid_bc_an.value = "";
+        }
+        if(cf.wep_key_no_an[0].checked == true)
+        {
+            cf.wep_key_no_an.value = "1";
+        }
+        else if(cf.wep_key_no_an[1].checked == true)
+        {
+            cf.wep_key_no_an.value = "2";
+        }
+        else if(cf.wep_key_no_an[2].checked == true)
+        {
+            cf.wep_key_no_an.value = "3";
+        }
+        else if(cf.wep_key_no_an[3].checked == true)
+        {
+            cf.wep_key_no_an.value = "4";
+        }
+    }
+
+
+    if(showDual5GBand)
+    {
+        if (cf.security_type_5G_2.value == "WEP")
+        {
+            for (i = 1; i < 5; i++ )
+            {
+                msg = "";
+                blankFlag = ! (eval("(cf.wep_key_no_an_2[" + (i-1) + "].checked)")); // default key
+                if( (blankFlag) && (eval("(cf.KEY" + i + "_an_2" + ".value.length == 0)")) )
+                    continue; // blank ok
+                sizeOK = ((eval("isHex(cf.KEY" + i + "_an_2" +".value)")) && (eval("(cf.KEY" + i + "_an_2" + ".value.length == len_an_2)")));
+                if (!sizeOK)
+                {
+                    msg += (len_an_2 == 10)?msg_key64_type:msg_key128_type;
+                    alertR(msg);
+                    if (i==1)
+                        cf.KEY1_an_2.focus();
+                    else if (i==2)
+                        cf.KEY2_an_2.focus();
+                    else if (i==3)
+                        cf.KEY3_an_2.focus();
+                    else if (i==4)
+                        cf.KEY4_an_2.focus();
+                    return false;
+                }
+            }
+            //Foxconn modified start, Wins, 06/22/2011, @WPS v2.0
+            if (wps_version == "2.0")
+            {
+                if (!show_tkip_or_wps_v20_msg) {
+                    if (!confirm("WEP security cannot work with WPS. WPS is going to become inaccessible. Do you want to continue?")){
+                        return false;
+                    }
+                }
+                show_tkip_or_wps_v20_msg = true;
+                needGrayOutWPS = 1;
+            }
+            else
+            {
+                if (cf.authAlgm_an_2.value.toLowerCase() == "sharedkey" && 
+		           		(cf.initAuthType_an_2.value.toLowerCase() != "sharedkey" && cf.init_security_type_5G_2.value.toLowerCase() != "wep"))
+                {
+                    if (!show_wep_or_wps_msg) {
+                        if (!confirm("WEP security with shared key authentication does not work with WPS. WPS will be inaccessible. Do you want to continue?")){
+                            return false;
+                        }
+                    }
+                    show_wep_or_wps_msg = true;
+                }
+                if (cf.authAlgm_an_2.value.toLowerCase() == "sharedkey")
+                    needGrayOutWPS = 1;     
+            }
+        
+            if(!cf.ssid_bc_an_2.checked)
+            {
+                cf.ssid_bc_an_2.value = "";
+            }
+            if(cf.wep_key_no_an_2[0].checked == true)
+            {
+                cf.wep_key_no_an_2.value = "1";
+            }
+            else if(cf.wep_key_no_an_2[1].checked == true)
+            {
+                cf.wep_key_no_an_2.value = "2";
+            }
+            else if(cf.wep_key_no_an_2[2].checked == true)
+            {
+                cf.wep_key_no_an_2.value = "3";
+            }
+            else if(cf.wep_key_no_an_2[3].checked == true)
+            {
+                cf.wep_key_no_an_2.value = "4";
+            }
+        }
+    }
+    
+    if (cf.security_type_2G.value == "WPA-PSK" || cf.security_type_2G.value == "WPA2-PSK" || cf.security_type_2G.value == "WPA-AUTO-PSK")
+    {
+        //Foxconn added end, Wins, 06/22/2011, @WPS v2.0
+        if (wps_version == "2.0")
+        {
+            if (cf.security_type_2G.value == "WPA-PSK")
+            {
+                if (!confirm("WEP security cannot work with WPS. WPS is going to become inaccessible. Do you want to continue?")){
+                    return false;
+                }
+                show_tkip_or_wps_v20_msg = true;
+                needGrayOutWPS = 1;
+            }
+        }
+        //Foxconn added end, Wins, 06/22/2011, @WPS v2.0
+
+        if(cf.passphrase.value.length < 8)
+        {
+            alert("A password consists of either 8~63 ASCII characters or exactly 64 hex-digits. A hex digit is one of these characters: 0, 1, 2, ..., 8, 9, A, B, C, D, E, F.");
+            return false;    
+        }
+        if(cf.passphrase.value.length > 63)
+        {
+            if ( isHex(cf.passphrase.value) == false)
+            {
+                alert("A password consists of either 8~63 ASCII characters or exactly 64 hex-digits. A hex digit is one of these characters: 0, 1, 2, ..., 8, 9, A, B, C, D, E, F.");
+                cf.passphrase.value = "";
+                return false;
+            }    
+        }
+        
+        if (cf.passphrase.value.match( /[^\x20-\x7E]/ ))
+        {
+            alert("Character is not allowed in password.");
+            cf.passphrase.focus();
+            return false;
+        }
+        
+        if (cf.wds_enable.value == "1" && cf.w_channel[0].selected)
+        {
+            alert("The wireless repeating function cannot be used with Auto Channel.\nPlease change your channel settings before you enable the wireless repeating function.");
+            cf.w_channel.focus();
+            return false;
+        }
+
+        if(!cf.ssid_bc.checked)
+        {
+            cf.ssid_bc.value = "";
+        }
+/*      if("" == "checked")
+        {
+            cf.security_type.value = "WPA-PSK";
+        }
+        else if("checked" == "checked")
+        {
+            cf.security_type.value = "WPA2-PSK";
+        }
+        else if("" == "checked")
+        {
+            cf.security_type.value = "AUTO-PSK";
+        }
+*/
+
+    }
+    
+    if (cf.security_type_5G.value == "WPA-PSK" || cf.security_type_5G.value == "WPA2-PSK" || cf.security_type_5G.value == "WPA-AUTO-PSK")
+    {
+        //Foxconn added end, Wins, 06/22/2011, @WPS v2.0
+        if (wps_version == "2.0")
+        {
+            if (cf.security_type_5G.value == "WPA-PSK")
+            {
+                if (!show_tkip_or_wps_v20_msg) {
+                    if (!confirm("WEP security cannot work with WPS. WPS is going to become inaccessible. Do you want to continue?")){
+                        return false;
+                    }
+                }
+                show_tkip_or_wps_v20_msg = true;
+                needGrayOutWPS = 1;
+            }
+        }
+        //Foxconn added end, Wins, 06/22/2011, @WPS v2.0
+
+        
+        if(cf.passphrase_an.value.length < 8)
+        {
+            alert("A password consists of either 8~63 ASCII characters or exactly 64 hex-digits. A hex digit is one of these characters: 0, 1, 2, ..., 8, 9, A, B, C, D, E, F.");
+            return false;    
+        }
+        if(cf.passphrase_an.value.length > 63)
+        {
+            if ( isHex(cf.passphrase_an.value) == false)
+            {
+                alert("A password consists of either 8~63 ASCII characters or exactly 64 hex-digits. A hex digit is one of these characters: 0, 1, 2, ..., 8, 9, A, B, C, D, E, F.");
+                cf.passphrase_an.value = "";
+                return false;
+            }    
+        }
+        
+        if (cf.passphrase_an.value.match( /[^\x20-\x7E]/ ))
+        {
+            alert("Character is not allowed in password.");
+            cf.passphrase_an.focus();
+            return false;
+        }
+
+        //if ((cf.auto_channel_5G.value == "1") && (index != 1 && index != 6 && index != 8 && index != 9 && index != 15 && index != 17))		// No band 4 channels for Africa, Europe, Israel, Japan, Middel East(Turkey/Tunisia/Kuwait), Middel East(United Arab Emirates) 
+        //{
+        //    if (cf.wds_enable_an.value == "1" && cf.w_channel_an[0].selected)
+        //    {
+        //        alert("The wireless repeating function cannot be used with Auto Channel.\nPlease change your channel settings before you enable the wireless repeating function.");
+        //        return false;
+        //    }
+        //}
+
+        if(!cf.ssid_bc_an.checked)
+        {
+            cf.ssid_bc_an.value = "";
+        }
+/*
+        if("" == "checked")
+        {
+            cf.security_type_an.value = "WPA-PSK";
+        }
+        else if("checked" == "checked")
+        {
+            cf.security_type_an.value = "WPA2-PSK";
+        }
+        else if("" == "checked")
+        {
+            cf.security_type_an.value = "AUTO-PSK";
+        }
+*/
+    }
+
+    if(showDual5GBand)
+    {
+        if (cf.security_type_5G_2.value == "WPA-PSK" || cf.security_type_5G_2.value == "WPA2-PSK" || cf.security_type_5G_2.value == "WPA-AUTO-PSK")
+        {
+            //Foxconn added end, Wins, 06/22/2011, @WPS v2.0
+            if (wps_version == "2.0")
+            {
+                if (cf.security_type_5G_2.value == "WPA-PSK")
+                {
+                    if (!show_tkip_or_wps_v20_msg) {
+                        if (!confirm("WEP security cannot work with WPS. WPS is going to become inaccessible. Do you want to continue?")){
+                            return false;
+                        }
+                    }
+                    show_tkip_or_wps_v20_msg = true;
+                    needGrayOutWPS = 1;
+                }
+            }
+            //Foxconn added end, Wins, 06/22/2011, @WPS v2.0
+
+        
+            if(cf.passphrase_an_2.value.length < 8)
+            {
+                alert("A password consists of either 8~63 ASCII characters or exactly 64 hex-digits. A hex digit is one of these characters: 0, 1, 2, ..., 8, 9, A, B, C, D, E, F.");
+                return false;    
+            }
+            if(cf.passphrase_an_2.value.length > 63)
+            {
+                if ( isHex(cf.passphrase_an_2.value) == false)
+                {
+                    alert("A password consists of either 8~63 ASCII characters or exactly 64 hex-digits. A hex digit is one of these characters: 0, 1, 2, ..., 8, 9, A, B, C, D, E, F.");
+                    cf.passphrase_an_2.value = "";
+                    return false;
+                }    
+            }
+        
+            if (cf.passphrase_an_2.value.match( /[^\x20-\x7E]/ ))
+            {
+                alert("Character is not allowed in password.");
+                cf.passphrase_an_2.focus();
+                return false;
+            }
+
+
+            if(!cf.ssid_bc_an_2.checked)
+            {
+                cf.ssid_bc_an_2.value = "";
+            }
+/*  
+           if("" == "checked")
+            {
+                cf.security_type_an_2.value = "WPA-PSK";
+            }
+            else if("" == "checked")
+            {
+                cf.security_type_an_2.value = "WPA2-PSK";
+            }
+            else if("" == "checked")
+            {
+                cf.security_type_an_2.value = "AUTO-PSK";
+            }
+*/
+        }
+    }
+
+    if (cf.security_type_2G.value == "WPA-ENTERPRISE")
+    {
+        var wan_ipaddr = cf.wan_ipaddr.value.split(".");
+        var w_ipaddr = (wan_ipaddr[0] << 24) | (wan_ipaddr[1] << 16) | (wan_ipaddr[2] << 8)| (wan_ipaddr[3]);
+        var w_setip = (cf.RADIUSAddr1_wla.value << 24) | (cf.RADIUSAddr2_wla.value << 16) | (cf.RADIUSAddr3_wla.value << 8)| (cf.RADIUSAddr4_wla.value);
+        var setPort = parseInt(cf.wpa_en_radius_port.value,10);
+        var ss_len = cf.wpa_en_radius_ss.value.length;
+
+
+        /* ip checking  */
+        if ( (w_setip != 0) && ( w_ipaddr == w_setip) )
+        {
+            alert("The IP address conflicts with the WAN IP subnet. Please enter a different IP address.");
+            return false;
+        }        
+        if(checkIP(cf.RADIUSAddr1_wla,cf.RADIUSAddr2_wla,cf.RADIUSAddr3_wla,cf.RADIUSAddr4_wla,254)
+            ||(parseInt(cf.RADIUSAddr4_wla.value,10)==0)||parseInt(cf.RADIUSAddr1_wla.value,10)>224
+            /*||(l_ipaddr < lan_netaddr_min)||(l_ipaddr > lan_netaddr_max)*/)
+        {
+            alert("Invalid IP address. Please enter it again.");
+            return false;
+        }
+        
+        /* port  checking */ 
+        if(setPort > 65535 || setPort < 0)
+        {
+            alert("The RADIUS server Port must be in the range [1- 65535]!");
+            return false;
+        }       
+        
+        /* share screct length checking */ 
+        if(ss_len > 128)
+        {
+            alert("Please enter 1 to 128 characters (octets) in the RADIUS server Shared Secret field!");
+            return false;  
+        }   
+		needGrayOutWPS = 1; 
+    } 
+
+    if (cf.security_type_5G.value == "WPA-ENTERPRISE")
+    {
+        var wan_ipaddr = cf.wan_ipaddr.value.split(".");
+        var w_ipaddr = (wan_ipaddr[0] << 24) | (wan_ipaddr[1] << 16) | (wan_ipaddr[2] << 8)| (wan_ipaddr[3]);
+        var w_setip = (cf.RADIUSAddr1_wlg.value << 24) | (cf.RADIUSAddr2_wlg.value << 16) | (cf.RADIUSAddr3_wlg.value << 8)| (cf.RADIUSAddr4_wlg.value);
+        var setPort = parseInt(cf.wpa_en_radius_port_wlg.value,10);
+        var ss_len = cf.wpa_en_radius_ss_wlg.value.length;
+                
+        /* ip checking  */
+        if ( (w_setip != 0) && ( w_setip == w_ipaddr) )
+        {
+            alert("The IP address conflicts with the WAN IP subnet. Please enter a different IP address.");
+            return false;
+        }        
+        if(checkIP(cf.RADIUSAddr1_wlg,cf.RADIUSAddr2_wlg,cf.RADIUSAddr3_wlg,cf.RADIUSAddr4_wlg,254)
+            ||(parseInt(cf.RADIUSAddr4_wlg.value,10)==0)||parseInt(cf.RADIUSAddr1_wlg.value,10)>224
+            /*||(l_ipaddr < lan_netaddr_min)||(l_ipaddr > lan_netaddr_max)*/)
+        {
+            alert("Invalid IP address. Please enter it again.");
+            return false;
+        }
+
+        /* port  checking */ 
+        if(setPort > 65535 || setPort < 0)
+        {
+            alert("The RADIUS server Port must be in the range [1- 65535]!");
+            return false;
+        }       
+
+        /* share screct length checking */ 
+        if(ss_len > 128)
+        {
+            alert("Please enter 1 to 128 characters (octets) in the RADIUS server Shared Secret field!");
+            return false;  
+        }    
+		needGrayOutWPS = 1; 
+    }
+
+    if(showDual5GBand)
+    {
+        if (cf.security_type_5G_2.value == "WPA-ENTERPRISE")
+        {
+            var wan_ipaddr = cf.wan_ipaddr.value.split(".");
+            var w_ipaddr = (wan_ipaddr[0] << 24) | (wan_ipaddr[1] << 16) | (wan_ipaddr[2] << 8)| (wan_ipaddr[3]);
+            var w_setip = (cf.RADIUSAddr1_wlh.value << 24) | (cf.RADIUSAddr2_wlh.value << 16) | (cf.RADIUSAddr3_wlh.value << 8)| (cf.RADIUSAddr4_wlh.value);
+            var setPort = parseInt(cf.wpa_en_radius_port_wlh.value,10);
+            var ss_len = cf.wpa_en_radius_ss_wlh.value.length;
+                
+            /* ip checking  */
+            if ( (w_setip != 0) && ( w_setip == w_ipaddr) )
+            {
+                alert("The IP address conflicts with the WAN IP subnet. Please enter a different IP address.");
+                return false;
+            }        
+            if(checkIP(cf.RADIUSAddr1_wlh,cf.RADIUSAddr2_wlh,cf.RADIUSAddr3_wlh,cf.RADIUSAddr4_wlh,254)
+                ||(parseInt(cf.RADIUSAddr4_wlh.value,10)==0)||parseInt(cf.RADIUSAddr1_wlh.value,10)>224
+                /*||(l_ipaddr < lan_netaddr_min)||(l_ipaddr > lan_netaddr_max)*/)
+            {
+                alert("Invalid IP address. Please enter it again.");
+                return false;
+            }
+
+            /* port  checking */ 
+            if(setPort > 65535 || setPort < 0)
+            {
+                alert("The RADIUS server Port must be in the range [1- 65535]!");
+                return false;
+            }       
+
+            /* share screct length checking */ 
+            if(ss_len > 128)
+            {
+                alert("Please enter 1 to 128 characters (octets) in the RADIUS server Shared Secret field!");
+                return false;  
+            }    
+		       needGrayOutWPS = 1; 
+		    }
+    }
+    
+    if(cf.enable_band_steering.value=="1")
+    {
+
+        if((cf.ssid.value != cf.ssid_an.value) ||(cf.security_type_2G.value!=cf.security_type_5G.value))
+        {
+            if (!confirm("The 2.4GHz and 5GHz SSID are not the same, SMART CONNECT will be disabled."))
+               return false;
+        }
+
+        if(cf.security_type_2G.value!='None' && cf.security_type_5G.value!='None')
+        {
+            if(cf.passphrase.value!= cf.passphrase_an.value)
+                if (!confirm("The 2.4GHz and 5GHz SSID are not the same, SMART CONNECT will be disabled."))
+                   return false;
+        }
+    }
+
+    if(needGrayOutWPS)
+        WPS_wizard_grayout();
+    else
+        WPS_wizard_ungrayout();
+
+    enable5G_2Setting();
+    
+    return true;
+}
